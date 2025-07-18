@@ -21,7 +21,11 @@ def mark_edge_points_on_shape(base_shape: TopoDS_Shape, edge_points: list) -> To
     compound = TopoDS_Compound()
     builder.MakeCompound(compound)
     # 添加原始几何体
-    builder.Add(compound, base_shape)
+    if not base_shape.IsNull():
+        builder.Add(compound, base_shape)
+    else:
+        print("⚠️ 警告：原始形状为空")
+    # builder.Add(compound, base_shape)
 
     # 遍历每个边缘点
     for pt in edge_points:
