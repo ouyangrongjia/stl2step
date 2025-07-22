@@ -24,7 +24,7 @@ def mark_edge_points_on_shape(base_shape: TopoDS_Shape, edge_points: list) -> To
     if not base_shape.IsNull():
         builder.Add(compound, base_shape)
     else:
-        print("⚠️ 警告：原始形状为空")
+        print("警告：原始形状为空")
     # builder.Add(compound, base_shape)
 
     # 遍历每个边缘点
@@ -67,19 +67,21 @@ def export_step(shape: TopoDS_Shape, output_path: str, unit: str = "MM", schema:
     if schema not in ["AP203", "AP214"]:
         raise ValueError(f"STEP 标准错误：{schema}，必须是 'AP203' 或 'AP214'")
 
-    # 设置OCC的全局变量
+    # 设置导出单位与压缩格式
     Interface_Static.SetCVal("xstep.cascade.unit", unit)
     Interface_Static.SetCVal("write.step.schema", schema)
 
-    # === 导出 ===
-    # 创建STEP写入器
+    # 可选精度压缩优化（默认启用）
+    Interface_Static.SetIVal("write.step.occ.precision.mode", 1)
+    Interface_Static.SetRVal("write.precision.val", 0.001)
+
     writer = STEPControl_Writer()
-    # 将形状传输到写入器
     status = writer.Transfer(shape, STEPControl_AsIs)
+
     if status != IFSelect_RetDone:
         print("STEP 写入失败：模型传输失败")
         return False
-    # 写入文件
+
     write_status = writer.Write(output_path)
     if write_status == IFSelect_RetDone:
         print(f"STEP 文件导出成功：{output_path}")

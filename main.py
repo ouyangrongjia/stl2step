@@ -7,6 +7,7 @@ from edge_graph import build_edge_graph
 from wire_builder import build_connected_edges
 from OCC.Core.BRep import BRep_Builder
 from OCC.Core.TopoDS import TopoDS_Compound
+from shape_processor import heal_shape
 import torch
 import numpy as np
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -18,20 +19,20 @@ def clean_points(points):
     return points
 
 def main():
-    # 加载STL点云与几何体
-    shape, points = load_stl(STL_PATH)
-    # 去除重复顶点
+    # 1. 加载STL点云与几何体
+    raw_shape, points = load_stl(STL_PATH)
     points = clean_points(points)
     print(f"去除重复顶点后，剩余点数：{len(points)}")
-    print(f"加载STL点云与几何体完成，读取点数：{len(points)}")
 
-    # 若去重后点数仍超限，则进行随机采样
     if len(points) > MAX_SAMPLED_POINTS:
-        print(f"点数超过{MAX_SAMPLED_POINTS}，进行随机采样...")
         rng = np.random.default_rng()
         sampled_indices = rng.choice(len(points), size=MAX_SAMPLED_POINTS, replace=False)
         points = points[sampled_indices]
-        print(f"采样后最终处理点数：{len(points)}")
+        print(f"点数超限，已随机采样至 {len(points)} 个点。")
+
+    # 几何优化步骤 对从STL加载的原始几何体进行缝合优化
+    print("开始对原始STL几何体进行缝合优化...")
+    healed_shape = heal_shape(raw_shape, tolerance=0.03)
 
     model = load_model().to(device)
     print(f"模型加载完成: {type(model).__name__}")
@@ -50,32 +51,45 @@ def main():
     # 从点云中提取边缘点
     edge_points = points[edge_labels]
     edge_points = clean_points(edge_points)
-
     print(f"边缘点识别完成，共 {len(edge_points)} 个")
 
-    # 将边缘点标记到原始几何体上，形成复合体 打点并导出STEP文件
-    shape_with_edges = mark_edge_points_on_shape(shape, edge_points)
+    # 构建边缘线段几何体
+    print("开始构建并优化边缘连接网络...")
+    # 这里的 k 和 max_dist_factor 是关键参数，需要根据模型调整
+    edge_indices = build_edge_graph(edge_points, k=2, max_dist_factor=2.0)
+    edge_lines_compound = build_connected_edges(edge_points, edge_indices)
 
-    # # 构建边缘线段几何体
-    # print("构建边缘点连线结构...")
-    # edge_indices = build_edge_graph(edge_points, k=5)
-    # edge_lines = build_connected_edges(edge_points, edge_indices)
-    #
-    # # 合并几何体和边线
-    # print("合并几何体和边线，准备导出STEP...")
-    # builder = BRep_Builder()
-    # compound = TopoDS_Compound()
-    # builder.MakeCompound(compound)
-    # builder.Add(compound, shape)  # 原始几何体
-    # builder.Add(compound, edge_lines)  # 边缘线段集合
+    # 合并几何体和边线
+    print("正在合并几何体与边缘线...")
+    final_compound = TopoDS_Compound()
+    builder = BRep_Builder()
+    builder.MakeCompound(final_compound)
+
+    # 添加优化后的主几何体
+    if not healed_shape.IsNull():
+        builder.Add(final_compound, healed_shape)
+
+    # 添加优化后的边缘线集合
+    if not edge_lines_compound.IsNull():
+        builder.Add(final_compound, edge_lines_compound)
 
     # 导出
-    success = export_step(shape=shape_with_edges, output_path=OUTPUT_STEP_PATH, unit="MM", schema="AP214")
+    success = export_step(shape=final_compound, output_path=OUTPUT_STEP_PATH, unit="MM", schema="AP214")
     print("STEP文件 导出成功" if success else "STEP文件 导出失败")
 
     # 边缘点可视化
     print("启动边缘点可视化窗口......")
-    visualize_points(points, edge_labels, title="PointNet Predict Result")
+    visualize_points(
+        points=points,
+        labels=edge_labels,
+        title="边缘点预测结果",
+        sample_size=3000,  # 降低显示点数，提高性能
+        edge_color='red',
+        non_edge_color='gray',
+        save_path="vis_result.png",
+        show=True
+    )
+
 
 if __name__ == '__main__':
     main()
