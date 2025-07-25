@@ -30,8 +30,7 @@ def predict_edge_points(model, points: np.ndarray):
     # 不计算梯度
     with torch.no_grad():
         logits, _ = model(input_tensor) # 输出: [1, N, 2]
-        # 在最后一个维度（类别维度）上取argmax，得到每个点的预测标签（0或1）
-        # 然后取第一个batch（因为只有一个batch）得到一维数组[N]
+        # 在最后一个维度（类别维度）上取argmax，得到每个点的预测标签（0或1）然后取第一个batch（因为只有一个batch）得到一维数组[N]
         preds = logits.argmax(dim=-1)[0]  # 取第一个batch [N]
 
     # 将预测结果转回CPU并转为numpy数组，并转换为布尔类型（边缘点为True，非边缘点为False）

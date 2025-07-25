@@ -7,8 +7,11 @@ from OCC.Core.TopoDS import TopoDS_Compound
 
 def build_connected_edges(points: np.ndarray, edges: list) -> TopoDS_Compound:
     """
-    将边缘点连线构建为TopoDS_Edge集合，返回为Compound（用于STEP导出）
-    """
+        将边缘点连线构建为TopoDS_Edge集合，返回为Compound（用于STEP导出）
+        :param points: 识别的边缘点云
+        :param edges: 边线
+        :return: 拓扑复合体结构
+        """
     builder = BRep_Builder()
     compound = TopoDS_Compound()
     builder.MakeCompound(compound)

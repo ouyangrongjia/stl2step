@@ -51,10 +51,11 @@ def main():
     healed_shape = heal_shape(raw_shape, tolerance=0.05)
 
     model = load_model(2).to(device)
-    print(f"模型加载完成: {type(model).__name__}")
+    # print(f"模型加载完成: {type(model).__name__}")
+    print("模型加载完成: pointnet2_sem_seg_msg")
 
     # 边缘点识别
-    # 设置批大小（避免一次性处理整个点云导致显存溢出）
+    # 设置批大小（避免一次性处理整个点云导致显存溢出，pointnet++模型才要批处理，pointnet不需要）
     batch_size = 150000
     # 初始化边缘标签数组，全为False（非边缘）
     edge_labels = np.zeros(len(points_for_model), dtype=bool)
@@ -71,7 +72,7 @@ def main():
 
     # 构建边缘线段几何体
     print("开始构建并优化边缘连接网络...")
-    # 这里的 k 和 max_dist_factor 是关键参数，需要根据模型调整
+    # k表示和邻近的几个点进行KNN搜索max_dist_factor表示点与点之间可接受的最远距离
     edge_indices = build_edge_graph(edge_points, k=2, max_dist_factor=2.0)
     edge_lines_compound = build_connected_edges(edge_points, edge_indices)
 

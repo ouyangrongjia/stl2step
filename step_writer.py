@@ -14,7 +14,10 @@ from OCC.Core.BRep import BRep_Builder
 
 def mark_edge_points_on_shape(base_shape: TopoDS_Shape, edge_points: list) -> TopoDS_Compound:
     """
-    将边缘点作为顶点标注到原始几何体上，并返回复合体 Compound（shape + 点）
+        将边缘点作为顶点标注到原始几何体上，并返回复合体 Compound（shape + 点）
+       :param base_shape: 原始几何体
+       :param edge_points: 边缘点点云
+       :return: 拓扑几何结构
     """
     # 创建一个复合体（Compound），用于存放原始几何体和所有边缘点顶点
     builder = BRep_Builder()
@@ -50,12 +53,11 @@ def export_step(shape: TopoDS_Shape, output_path: str, unit: str = "MM", schema:
     导出 STEP 文件，支持单位设置（MM/INCH）与 STEP 压缩标准（AP203/AP214）
 
     :param shape: TopoDS_Shape 或 TopoDS_Compound
-    :param output_path: 输出文件路径，.step 或 .stp
+    :param output_path: 输出文件路径
     :param unit: 单位设置，"MM" 或 "INCH"
     :param schema: STEP 输出压缩标准，"AP203" 或 "AP214"
     :return: 是否成功
     """
-    # === 设置导出参数 ===
     # 设置STEP导出的单位和模式
     unit = unit.upper()
     schema = schema.upper()
@@ -70,7 +72,7 @@ def export_step(shape: TopoDS_Shape, output_path: str, unit: str = "MM", schema:
     Interface_Static.SetCVal("xstep.cascade.unit", unit)
     Interface_Static.SetCVal("write.step.schema", schema)
 
-    # 可选精度压缩优化（默认启用）
+    # 精度压缩优化
     Interface_Static.SetIVal("write.step.occ.precision.mode", 1)
     Interface_Static.SetRVal("write.precision.val", 0.001)
 
