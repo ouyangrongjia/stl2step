@@ -1,17 +1,28 @@
+# main.py
+import torch
+import numpy as np
+import os
+
+# OCC/OpenCASCADE 模块导入
+from OCC.Core.BRep import BRep_Builder
+from OCC.Core.TopoDS import TopoDS_Compound
+
+# 本地模块导入
 from stl_reader import load_stl
 from pointnet_infer import load_model, predict_edge_points
-from step_writer import mark_edge_points_on_shape, export_step
+from step_writer import export_step
 from config import STL_PATH, OUTPUT_STEP_PATH
 from visualize_edges import visualize_points
 from edge_graph import build_edge_graph
 from wire_builder import build_connected_edges
-from OCC.Core.BRep import BRep_Builder
-from OCC.Core.TopoDS import TopoDS_Compound
 from shape_processor import heal_shape
-import torch
-import numpy as np
+from sampler import sample_points
+from mesh_processor import simplify_stl
+
+# 全局配置
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 MAX_SAMPLED_POINTS = 50000
+
 def clean_points(points):
     points = np.unique(points, axis=0)
     points = np.array(points, dtype=np.float32)
@@ -19,37 +30,42 @@ def clean_points(points):
     return points
 
 def main():
+    # 定义一个临时的、简化后的STL文件路径
+    temp_stl_dir = "temp"
+    if not os.path.exists(temp_stl_dir):
+        os.makedirs(temp_stl_dir)
+    temp_stl_path = os.path.join(temp_stl_dir, os.path.basename(STL_PATH))
+    # 调用简化函数 参数为将三角面片数降低至的比例
+    simplify_stl(STL_PATH, temp_stl_path, target_reduction_factor=0.1)
     # 1. 加载STL点云与几何体
-    raw_shape, points = load_stl(STL_PATH)
+    raw_shape, points = load_stl(temp_stl_path)
     points = clean_points(points)
     print(f"去除重复顶点后，剩余点数：{len(points)}")
 
-    if len(points) > MAX_SAMPLED_POINTS:
-        rng = np.random.default_rng()
-        sampled_indices = rng.choice(len(points), size=MAX_SAMPLED_POINTS, replace=False)
-        points = points[sampled_indices]
-        print(f"点数超限，已随机采样至 {len(points)} 个点。")
+    # 点云采样
+    voxel_size = 1.0
+    points_for_model = sample_points(points, voxel_size, MAX_SAMPLED_POINTS)
 
     # 几何优化步骤 对从STL加载的原始几何体进行缝合优化
     print("开始对原始STL几何体进行缝合优化...")
-    healed_shape = heal_shape(raw_shape, tolerance=0.03)
+    healed_shape = heal_shape(raw_shape, tolerance=0.05)
 
-    model = load_model().to(device)
+    model = load_model(2).to(device)
     print(f"模型加载完成: {type(model).__name__}")
 
     # 边缘点识别
     # 设置批大小（避免一次性处理整个点云导致显存溢出）
-    batch_size = 100000
+    batch_size = 150000
     # 初始化边缘标签数组，全为False（非边缘）
-    edge_labels = np.zeros(len(points), dtype=bool)
+    edge_labels = np.zeros(len(points_for_model), dtype=bool)
     # 分批处理点云
-    for i in range(0, len(points), batch_size):
-        batch = points[i:i + batch_size]
+    for i in range(0, len(points_for_model), batch_size):
+        batch = points_for_model[i:i + batch_size]
         # 预测当前批次，得到布尔数组（边缘点为True）
         edge_labels[i:i + batch_size] = predict_edge_points(model, batch)
 
     # 从点云中提取边缘点
-    edge_points = points[edge_labels]
+    edge_points = points_for_model[edge_labels]
     edge_points = clean_points(edge_points)
     print(f"边缘点识别完成，共 {len(edge_points)} 个")
 
@@ -77,13 +93,20 @@ def main():
     success = export_step(shape=final_compound, output_path=OUTPUT_STEP_PATH, unit="MM", schema="AP214")
     print("STEP文件 导出成功" if success else "STEP文件 导出失败")
 
+    print("-" * 50)
+    print("准备进入可视化阶段...")
+    print(f"传入可视化函数的总点数 (points_for_model): {len(points_for_model)}")
+    print(f"其中识别出的边缘点数量: {np.sum(edge_labels)}")
+    print(f"其中非边缘点数量: {len(edge_labels) - np.sum(edge_labels)}")
+    print("-" * 50)
+
     # 边缘点可视化
     print("启动边缘点可视化窗口......")
     visualize_points(
-        points=points,
+        points=points_for_model,
         labels=edge_labels,
         title="边缘点预测结果",
-        sample_size=3000,  # 降低显示点数，提高性能
+        sample_size=5000,  # 降低显示点数，提高性能
         edge_color='red',
         non_edge_color='gray',
         save_path="vis_result.png",

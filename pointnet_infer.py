@@ -10,11 +10,8 @@ from Pointnet_Pointnet2_pytorch.models import pointnet2_sem_seg_msg as pointnet_
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def load_model():
-    # 创建PointNetDenseCls模型实例，用于分割（k=2表示两类：边缘和非边缘）
-    # model = pointnet_model.PointNetDenseCls(k=2, feature_transform=False).to(device)
-    model = pointnet_model.get_model(num_classes=2).to(device)
-    # 设置为评估模式
+def load_model(num_class):
+    model = pointnet_model.get_model(num_classes=num_class).to(device)
     model.eval()
     return model
 
@@ -43,3 +40,15 @@ def predict_edge_points(model, points: np.ndarray):
     # 将预测结果转回CPU并转为numpy数组，并转换为布尔类型（边缘点为True，非边缘点为False）
     return preds.cpu().numpy().astype(bool)
 
+def predict_edge_points_with_logits(model, points: np.ndarray):
+    """
+    使用加载好的模型预测边缘点，并返回原始的logits分数用于诊断。
+    """
+    input_tensor = prepare_pointnet2_input(points).to(device)
+
+    with torch.no_grad():
+        logits, _ = model(input_tensor) # 输出: [1, N, 2]
+        preds = logits.argmax(dim=-1)[0]  # 取第一个batch [N]
+
+    # 返回布尔标签 和 原始的logits
+    return preds.cpu().numpy().astype(bool), logits

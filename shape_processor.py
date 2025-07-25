@@ -1,6 +1,7 @@
 # shape_processor.py
 from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_Sewing
 from OCC.Core.TopoDS import TopoDS_Shape
+from OCC.Core.ShapeUpgrade import ShapeUpgrade_UnifySameDomain
 
 
 def heal_shape(shape: TopoDS_Shape, tolerance: float = 1e-3) -> TopoDS_Shape:
@@ -30,4 +31,11 @@ def heal_shape(shape: TopoDS_Shape, tolerance: float = 1e-3) -> TopoDS_Shape:
         return shape
 
     print(f"几何体缝合完成。")
-    return sewed_shape
+
+    print("正在尝试合并共面的面片以优化几何体...")
+    unifier = ShapeUpgrade_UnifySameDomain(sewed_shape)
+    unifier.Build()
+    unified_shape = unifier.Shape()
+    print("共面合并完成。")
+
+    return unified_shape

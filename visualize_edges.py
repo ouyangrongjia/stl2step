@@ -1,71 +1,64 @@
+# visualize_edges.py
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
+
 def visualize_points(points,
                      labels=None,
-                     title="边缘点可视化",
-                     sample_size=2048,
+                     title="模型轮廓与识别出的边缘点",
+                     sample_size=5000,  # 此参数在新逻辑中被忽略，但保留以兼容旧调用
                      edge_color='red',
                      non_edge_color='lightgray',
-                     edge_size=4,
-                     non_edge_size=1,
+                     edge_size=15,
+                     non_edge_size=2,
                      show=True,
-                     save_path="out.png"):
+                     save_path="vis_result.png"):
     """
-    可视化点云及边缘点识别结果
-
-    参数说明：
-    - points: (N, 3) 点云坐标
-    - labels: (N,) bool 或 int，1为边缘点，0为非边缘点
-    - sample_size: 限制最大显示点数（加快渲染）
-    - edge_color: 边缘点颜色
-    - non_edge_color: 非边缘点颜色
-    - edge_size: 边缘点大小
-    - non_edge_size: 非边缘点大小
-    - show: 是否显示图像
-    - save_path: 保存图片路径（默认 out.png）
+    可视化点云及边缘点识别结果。
+    绘制完整的模型轮廓作为背景，然后高亮显示识别出的边缘点。
     """
-    fig = plt.figure()
+    fig = plt.figure(figsize=(12, 9))
     ax = fig.add_subplot(111, projection='3d')
 
     if labels is None:
-        labels = np.zeros(len(points))  # 默认全为非边缘
+        labels = np.zeros(len(points), dtype=bool)
 
-    # 下采样，加速可视化
-    if len(points) > sample_size:
-        idx = np.random.choice(len(points), sample_size, replace=False)
-        points = points[idx]
-        labels = np.array(labels)[idx]
+    # 绘制完整的输入点云(points_for_model)作为背景轮廓
+    if len(points) > 0:
+        print(f"可视化: 正在绘制 {len(points)} 个点作为完整模型背景...")
+        ax.scatter(points[:, 0], points[:, 1], points[:, 2],
+                   c=non_edge_color,
+                   s=non_edge_size,
+                   label='完整模型轮廓')
 
-    # 分组绘制
+    # 提取边缘点
     edge_pts = points[labels == 1]
-    non_edge_pts = points[labels == 0]
 
-    if len(non_edge_pts) > 0:
-        ax.scatter(non_edge_pts[:, 0], non_edge_pts[:, 1], non_edge_pts[:, 2],
-                   c=non_edge_color, s=non_edge_size, label='非边缘点')
-
+    # 边缘点覆盖在背景之上，用不同颜色和大小高亮显示
     if len(edge_pts) > 0:
+        print(f"可视化: 正在高亮显示 {len(edge_pts)} 个识别出的边缘点...")
         ax.scatter(edge_pts[:, 0], edge_pts[:, 1], edge_pts[:, 2],
-                   c=edge_color, s=edge_size, label='边缘点')
+                   c=edge_color,
+                   s=edge_size,
+                   label=f'识别出的边缘点 ({len(edge_pts)}个)',
+                   depthshade=False)  # 让红点更突出，不受深度影响而变暗
 
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
     ax.set_zlabel("Z")
     ax.set_title(title)
     ax.legend()
+    ax.set_aspect('auto')
+
     plt.tight_layout()
 
-    # 保存图像
     if save_path:
         plt.savefig(save_path, dpi=300)
         print(f"可视化图像保存成功：{save_path}")
 
     if show:
         plt.show()
-
     plt.close(fig)
