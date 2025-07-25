@@ -1,4 +1,4 @@
-# STL文件读取器
+# stl_reader.py
 """
 - 功能：读取STL文件，返回两个部分：
     OCC几何体（用于后续的STEP导出）

@@ -1,4 +1,4 @@
-# mesh_processor.py (已添加法线计算)
+# mesh_processor.py
 import open3d as o3d
 from stl import mesh as np_mesh
 import numpy as np
@@ -8,7 +8,6 @@ import os
 def simplify_stl(input_path: str, output_path: str, target_reduction_factor: float = 0.5):
     """
     使用 Open3D 简化 STL 网格模型。
-    更新：增加了在保存前重新计算法线的步骤。
     """
     if not (0 < target_reduction_factor <= 1.0):
         raise ValueError("target_reduction_factor 必须在 (0, 1] 范围内。")

@@ -23,7 +23,6 @@ def heal_shape(shape: TopoDS_Shape, tolerance: float = 1e-3) -> TopoDS_Shape:
     sewer.Perform()
 
     # 获取缝合后的结果
-    # SewedShape() 返回的是一个可能是 compound, shell, solid等的通用shape
     sewed_shape = sewer.SewedShape()
 
     if sewed_shape.IsNull():

@@ -17,9 +17,7 @@ def build_edge_graph(points: np.ndarray, k: int = 5, max_dist_factor: float = 2.
 
     tree = KDTree(points)
 
-    # 计算一个合理的平均距离作为参考
-    # 查询每个点到其最近邻的距离，并取平均值
-    # 这可以作为一个基准来判断什么是“长边”
+    # 计算一个合理的平均距离作为参考 查询每个点到其最近邻的距离，并取平均值
     distances, _ = tree.query(points, k=2)
     # distances[:, 1] 包含了每个点到其最近一个邻居的距离
     if distances.shape[1] > 1:

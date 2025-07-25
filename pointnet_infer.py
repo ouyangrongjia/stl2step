@@ -1,4 +1,4 @@
-# 模型导入
+# pointnet_infer.py
 """
 - 功能：加载PointNet分割模型，并实现点云边缘点预测。
 """
@@ -26,9 +26,6 @@ def prepare_pointnet2_input(points: np.ndarray) -> torch.Tensor:
     return torch.tensor(full_feats, dtype=torch.float32).unsqueeze(0)  # (1, 9, N)
 
 def predict_edge_points(model, points: np.ndarray):
-    # points_tensor = torch.tensor(points, dtype=torch.float32).to(device)
-    # # 调整张量维度：原始点云形状为[N, 3] -> 转为[1, 3, N]（因为模型要求batch在前，通道在中，点数在后）
-    # points_tensor = points_tensor.unsqueeze(0).transpose(2, 1)  # [1, 3, N]
     input_tensor = prepare_pointnet2_input(points).to(device)
     # 不计算梯度
     with torch.no_grad():
@@ -39,16 +36,3 @@ def predict_edge_points(model, points: np.ndarray):
 
     # 将预测结果转回CPU并转为numpy数组，并转换为布尔类型（边缘点为True，非边缘点为False）
     return preds.cpu().numpy().astype(bool)
-
-def predict_edge_points_with_logits(model, points: np.ndarray):
-    """
-    使用加载好的模型预测边缘点，并返回原始的logits分数用于诊断。
-    """
-    input_tensor = prepare_pointnet2_input(points).to(device)
-
-    with torch.no_grad():
-        logits, _ = model(input_tensor) # 输出: [1, N, 2]
-        preds = logits.argmax(dim=-1)[0]  # 取第一个batch [N]
-
-    # 返回布尔标签 和 原始的logits
-    return preds.cpu().numpy().astype(bool), logits

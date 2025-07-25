@@ -9,7 +9,7 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 def visualize_points(points,
                      labels=None,
                      title="模型轮廓与识别出的边缘点",
-                     sample_size=5000,  # 此参数在新逻辑中被忽略，但保留以兼容旧调用
+                     sample_size=5000,
                      edge_color='red',
                      non_edge_color='lightgray',
                      edge_size=15,
